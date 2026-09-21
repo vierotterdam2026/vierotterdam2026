@@ -8,8 +8,19 @@ const TODAY = new Date("2026-09-18T09:00:00Z");
 const session = (date: string, status: SessionStatus = "signup_open") => ({ date, status });
 
 describe("upcomingWindow", () => {
-  it("starts yesterday so a played Sunday is still correctable", () => {
-    expect(upcomingWindow(TODAY)).toEqual({ from: "2026-09-17", to: "2026-10-16" });
+  it("starts today before 15:00 Amsterdam time", () => {
+    expect(upcomingWindow(TODAY)).toEqual({ from: "2026-09-18", to: "2026-10-16" });
+  });
+
+  it("starts tomorrow from 15:00 Amsterdam time", () => {
+    // 13:00Z = 15:00 in Amsterdam summer time.
+    expect(upcomingWindow(new Date("2026-09-20T13:00:00Z")).from).toBe("2026-09-21");
+    expect(upcomingWindow(new Date("2026-09-20T12:59:00Z")).from).toBe("2026-09-20");
+  });
+
+  it("uses the Amsterdam date, not UTC", () => {
+    // 22:30Z on the 19th is already 00:30 on the 20th in Amsterdam.
+    expect(upcomingWindow(new Date("2026-09-19T22:30:00Z")).from).toBe("2026-09-20");
   });
 
   it("can be asked for a different horizon", () => {
@@ -44,10 +55,14 @@ describe("selectUpcoming", () => {
     expect(selectUpcoming(all, TODAY).map((s) => s.date)).not.toContain("2026-09-13");
   });
 
-  it("keeps yesterday's game so attendance can still be corrected", () => {
-    const monday = new Date("2026-09-21T09:00:00Z");
-    const played = [session("2026-09-20", "completed"), session("2026-09-27")];
-    expect(selectUpcoming(played, monday).map((s) => s.date)).toEqual(["2026-09-20", "2026-09-27"]);
+  it("keeps today's game until 15:00, then hands it to the Feed", () => {
+    const games = [session("2026-09-20", "completed"), session("2026-09-27")];
+    const before = new Date("2026-09-20T12:59:00Z");
+    const after = new Date("2026-09-20T13:00:00Z");
+    expect(selectUpcoming(games, before).map((s) => s.date)).toEqual(["2026-09-20", "2026-09-27"]);
+    expect(selectUpcoming(games, after).map((s) => s.date)).toEqual(["2026-09-27"]);
+    expect(selectPast(games, before)).toEqual([]);
+    expect(selectPast(games, after).map((s) => s.date)).toEqual(["2026-09-20"]);
   });
 
   it("keeps a cancelled Sunday, because players need to know it is off", () => {
@@ -138,10 +153,10 @@ describe("selectPast", () => {
     ]);
   });
 
-  it("keeps yesterday's game upcoming until the day after", () => {
-    const monday = new Date("2026-09-21T09:00:00Z");
-    expect(selectPast(all, monday).map((s) => s.date)).not.toContain("2026-09-20");
-    expect(selectUpcoming(all, monday).map((s) => s.date)).toContain("2026-09-20");
+  it("treats a game as past from 15:00 Amsterdam time on its day", () => {
+    const sunday = new Date("2026-09-20T13:00:00Z");
+    expect(selectPast(all, sunday).map((s) => s.date)).toContain("2026-09-20");
+    expect(selectUpcoming(all, sunday).map((s) => s.date)).not.toContain("2026-09-20");
   });
 
   it("never overlaps with selectUpcoming", () => {

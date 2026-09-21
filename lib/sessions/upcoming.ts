@@ -11,23 +11,45 @@ export interface DatedSession {
   status: SessionStatus;
 }
 
+/** Game days are read in this timezone, not UTC. */
+export const SUNDAY_TIMEZONE = "Europe/Amsterdam";
+
+/** From this local hour on game day, the Sunday leaves Home and moves to the Feed. */
+export const MOVE_TO_FEED_HOUR = 15;
+
+/** Calendar date (YYYY-MM-DD) and hour of `now` in the game timezone. */
+function localDateAndHour(now: Date): { date: string; hour: number } {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: SUNDAY_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const get = (type: string) => parts.find((p) => p.type === type)!.value;
+  return { date: `${get("year")}-${get("month")}-${get("day")}`, hour: Number(get("hour")) };
+}
+
 /**
- * The window players can respond within. It starts *yesterday*, because signup
- * now runs until the day after a game: on Monday morning you can still correct
- * whether you actually played on Sunday.
+ * The window players can respond within. A Sunday stays until 15:00 Amsterdam
+ * time on game day, then moves to the Feed's past Sundays: `from` is today's
+ * date before 15:00 and tomorrow's from then on. `selectPast` cuts at the same
+ * `from`, so a date is never on both.
  */
 export function upcomingWindow(today: Date = new Date(), weeks = UPCOMING_WEEKS) {
-  const start = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
-  start.setUTCDate(start.getUTCDate() - 1);
+  const { date, hour } = localDateAndHour(today);
+  const start = new Date(`${date}T00:00:00Z`);
+  if (hour >= MOVE_TO_FEED_HOUR) start.setUTCDate(start.getUTCDate() + 1);
 
   const to = new Date(start);
-  to.setUTCDate(to.getUTCDate() + weeks * 7 + 1);
+  to.setUTCDate(to.getUTCDate() + weeks * 7);
   return { from: iso(start), to: iso(to) };
 }
 
 /**
- * The Sundays a player should see, soonest first. Yesterday's game stays while
- * its signup is still open; a cancelled one stays too, because "it's off this
+ * The Sundays a player should see, soonest first. A game stays until 15:00 on
+ * its day; a cancelled one stays too, because "it's off this
  * week" is information. Only drafts are hidden.
  */
 export function selectUpcoming<T extends DatedSession>(
