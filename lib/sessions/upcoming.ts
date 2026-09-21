@@ -44,6 +44,20 @@ export function selectUpcoming<T extends DatedSession>(
     .slice(0, limit);
 }
 
+/**
+ * Every Sunday that has passed, newest first, for the feed. It cuts at the same
+ * boundary as `selectUpcoming` (the window's `from`), so a date is never on both.
+ * Drafts never went public; a cancelled Sunday stays, as "it was off" is news.
+ */
+export function selectPast<T extends DatedSession>(sessions: T[], today: Date = new Date()): T[] {
+  const { from } = upcomingWindow(today);
+
+  return sessions
+    .filter((s) => s.date < from)
+    .filter((s) => s.status !== "draft")
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
+
 /** The Sundays an admin should be creating, so the list is never empty. */
 export function missingSundays(existing: string[], today: Date = new Date(), count = UPCOMING_LIMIT): string[] {
   const have = new Set(existing);

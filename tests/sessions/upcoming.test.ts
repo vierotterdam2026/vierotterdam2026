@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { missingSundays, selectUpcoming, upcomingWindow } from "@/lib/sessions/upcoming";
+import { missingSundays, selectPast, selectUpcoming, upcomingWindow } from "@/lib/sessions/upcoming";
 import type { SessionStatus } from "@/lib/sessions/state";
 
 // A Friday, so "the coming Sunday" is two days away.
@@ -118,5 +118,39 @@ describe("reveal defaults", () => {
       timezone: "Europe/Amsterdam",
     });
     expect(closes).toBe("2026-09-21T21:59:00.000Z");
+  });
+});
+
+describe("selectPast", () => {
+  const all = [
+    session("2026-09-06", "completed"),
+    session("2026-09-13", "cancelled"),
+    session("2026-08-30", "draft"),
+    session("2026-09-20"),
+    session("2026-09-27"),
+  ];
+
+  it("returns every past Sunday newest first, without drafts", () => {
+    expect(selectPast(all, new Date("2026-09-22T09:00:00Z")).map((s) => s.date)).toEqual([
+      "2026-09-20",
+      "2026-09-13",
+      "2026-09-06",
+    ]);
+  });
+
+  it("keeps yesterday's game upcoming until the day after", () => {
+    const monday = new Date("2026-09-21T09:00:00Z");
+    expect(selectPast(all, monday).map((s) => s.date)).not.toContain("2026-09-20");
+    expect(selectUpcoming(all, monday).map((s) => s.date)).toContain("2026-09-20");
+  });
+
+  it("never overlaps with selectUpcoming", () => {
+    const today = new Date("2026-09-22T09:00:00Z");
+    const up = new Set(selectUpcoming(all, today).map((s) => s.date));
+    expect(selectPast(all, today).some((s) => up.has(s.date))).toBe(false);
+  });
+
+  it("is empty when nothing has passed", () => {
+    expect(selectPast([session("2026-09-27")], new Date("2026-09-22T09:00:00Z"))).toEqual([]);
   });
 });

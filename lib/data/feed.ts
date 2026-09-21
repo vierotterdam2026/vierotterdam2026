@@ -3,6 +3,8 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { buildLeaderboard, type LeaderboardRow } from "@/lib/feed/leaderboard";
 import { picksRevealed, type Pick as Choice } from "@/lib/feed/fixture-state";
 import { rankTotals, type StatTotal } from "@/lib/feed/top-stats";
+import { selectPast, upcomingWindow } from "@/lib/sessions/upcoming";
+import type { SessionStatus } from "@/lib/sessions/state";
 import type { FixtureRow, PlayerStatAdjustmentRow } from "@/types/database";
 
 /** Only what the Feed shows. No ratings, positions or contact details. */
@@ -14,7 +16,16 @@ export interface FixtureWithPicks extends FeedFixture {
   revealed: { name: string; pick: Choice }[] | null;
 }
 
+/** A Sunday that has gone by. Only a count of confirmed players: no names, no ratings. */
+export interface PastSunday {
+  id: string;
+  date: string;
+  status: SessionStatus;
+  confirmed: number;
+}
+
 export interface FeedData {
+  pastSundays: PastSunday[];
   topScorers: StatTotal[];
   topAssists: StatTotal[];
   upcoming: FixtureWithPicks[];
@@ -74,10 +85,38 @@ export async function getStatTotals(groupId: string) {
   };
 }
 
+/** Every past Sunday, newest first, each with its confirmed-signup count. */
+export async function listPastSundays(groupId: string): Promise<PastSunday[]> {
+  const db = supabaseAdmin();
+  const { from } = upcomingWindow();
+
+  const { data } = await db
+    .from("sessions")
+    .select("id, date, status")
+    .eq("group_id", groupId)
+    .lt("date", from)
+    .neq("status", "draft");
+
+  const past = selectPast((data ?? []) as { id: string; date: string; status: SessionStatus }[]);
+  if (past.length === 0) return [];
+
+  const { data: signups } = await db
+    .from("signups")
+    .select("session_id")
+    .eq("status", "confirmed")
+    .in("session_id", past.map((s) => s.id));
+
+  const confirmed = new Map<string, number>();
+  for (const row of signups ?? []) confirmed.set(row.session_id, (confirmed.get(row.session_id) ?? 0) + 1);
+
+  return past.map((s) => ({ ...s, confirmed: confirmed.get(s.id) ?? 0 }));
+}
+
 export async function getFeed(groupId: string, viewerId: string): Promise<FeedData> {
   const db = supabaseAdmin();
-  const [stats, { data: fixtures }] = await Promise.all([
+  const [stats, pastSundays, { data: fixtures }] = await Promise.all([
     getStatTotals(groupId),
+    listPastSundays(groupId),
     db.from("fixtures").select(FIXTURE_COLUMNS).eq("group_id", groupId).order("kickoff_at", { ascending: true }),
   ]);
 
@@ -102,6 +141,7 @@ export async function getFeed(groupId: string, viewerId: string): Promise<FeedDa
   };
 
   return {
+    pastSundays,
     topScorers: stats.topScorers,
     topAssists: stats.topAssists,
     upcoming: all.filter((f) => f.status === "scheduled" || f.status === "postponed").map(withPicks),

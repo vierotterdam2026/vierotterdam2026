@@ -4,6 +4,7 @@ import { getGroup } from "@/lib/data/groups";
 import { Alert } from "@/components/ui/alert";
 import { SectionTitle } from "@/components/ui/card";
 import { FixtureCard } from "@/components/feed/fixture-card";
+import { PastSundayCard } from "@/components/feed/past-sunday-card";
 import { Leaderboard } from "@/components/feed/leaderboard";
 import { TopList } from "@/components/feed/top-list";
 
@@ -43,6 +44,15 @@ export default async function FeedPage() {
           feed.upcoming.map((f) => <FixtureCard key={f.id} fixture={f} timezone={group.timezone} />)
         )}
       </section>
+
+      {feed.pastSundays.length > 0 ? (
+        <section className="flex flex-col gap-3">
+          <SectionTitle>Past Sundays</SectionTitle>
+          {feed.pastSundays.map((s) => (
+            <PastSundayCard key={s.id} sunday={s} timezone={group.timezone} />
+          ))}
+        </section>
+      ) : null}
 
       <Leaderboard rows={feed.leaderboard} viewerName={user.player.name} />
 
