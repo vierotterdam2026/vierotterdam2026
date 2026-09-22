@@ -92,8 +92,7 @@ export function PositionPicker({
       ))}
 
       <p className="text-xs leading-relaxed text-chalk-faint">
-        Only you and the organisers see these ratings. They are used to balance the teams — nobody else in
-        the group sees your numbers.
+        The ratings are used to balance teams.
       </p>
     </div>
   );

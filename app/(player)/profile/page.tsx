@@ -50,8 +50,7 @@ export default async function ProfilePage() {
       <div className="mt-10">
         <SectionTitle className="mb-1">Your ratings</SectionTitle>
         <p className="mb-3 text-sm text-chalk-dim">
-          Rate yourself like a FIFA card, against our Sunday group: 50 is a typical player here. Only you and the
-          admins can see these.
+          Rate yourself like a FIFA card, against our Sunday group: 50 is a typical player here.
         </p>
         <AttributesForm initial={attributes ?? defaultAttributes()} />
       </div>
