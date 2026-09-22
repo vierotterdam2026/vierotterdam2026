@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ATTRIBUTE_MAX, ATTRIBUTE_MIN } from "@/lib/players/attributes";
 import { POSITION_CODES } from "@/lib/teams/positions";
 import { SESSION_STATUSES } from "@/lib/sessions/state";
 
@@ -146,4 +147,19 @@ export const statAdjustmentSchema = z.object({
   stat: z.enum(["goal", "assist"]),
   target: z.coerce.number().int("Use a whole number.").min(0, "A total cannot be negative.").max(9999),
   reason: z.string().trim().min(3, "Say why you are changing it (at least 3 characters).").max(200),
+});
+
+const attributeValue = z
+  .number()
+  .int()
+  .min(ATTRIBUTE_MIN, `Rate from ${ATTRIBUTE_MIN} to ${ATTRIBUTE_MAX}.`)
+  .max(ATTRIBUTE_MAX, `Rate from ${ATTRIBUTE_MIN} to ${ATTRIBUTE_MAX}.`);
+
+export const attributesSchema = z.object({
+  pace: attributeValue,
+  shooting: attributeValue,
+  passing: attributeValue,
+  dribbling: attributeValue,
+  defending: attributeValue,
+  physical: attributeValue,
 });

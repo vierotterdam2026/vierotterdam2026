@@ -341,6 +341,12 @@ export async function addPlayerToTeamAction(_prev: ActionState, formData: FormDa
       .limit(1)
       .maybeSingle();
 
+    const { data: attributes } = await db
+      .from("player_attributes")
+      .select("pace, shooting, passing, dribbling, defending, physical")
+      .eq("player_id", input.playerId)
+      .maybeSingle();
+
     const { error } = await db.from("team_members").insert({
       team_id: team.id,
       session_id: team.session_id,
@@ -348,6 +354,7 @@ export async function addPlayerToTeamAction(_prev: ActionState, formData: FormDa
       assigned_position: position?.position ?? "CM",
       position_rating_snapshot: position ? Number(position.effective_rating) : null,
       preference_rank_snapshot: position?.preference_rank ?? null,
+      attributes_snapshot: attributes,
       is_available: signup.status === "confirmed",
     });
 

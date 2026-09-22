@@ -161,8 +161,21 @@ export async function getConfirmedPlayersForGeneration(sessionId: string): Promi
     byPlayer.set(row.player_id, list);
   }
 
+  const { data: attributes } = await db
+    .from("player_attributes")
+    .select("player_id, pace, shooting, passing, dribbling, defending, physical")
+    .in("player_id", players.map((p) => p.id));
+  const attributesByPlayer = new Map(
+    (attributes ?? []).map(({ player_id, ...rest }) => [player_id, rest]),
+  );
+
   return players
-    .map((p) => ({ id: p.id, name: p.name, positions: byPlayer.get(p.id) ?? [] }))
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      positions: byPlayer.get(p.id) ?? [],
+      attributes: attributesByPlayer.get(p.id) ?? null,
+    }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 

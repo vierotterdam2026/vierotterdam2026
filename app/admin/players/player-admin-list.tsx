@@ -9,6 +9,7 @@ import {
   setRoleAction,
 } from "@/app/actions/admin-players";
 import { IDLE } from "@/lib/actions/result";
+import { ATTRIBUTE_KEYS, ATTRIBUTE_LABELS, ATTRIBUTE_SHORT, type Attributes } from "@/lib/players/attributes";
 import type { PositionCode } from "@/lib/teams/positions";
 import type { MemberRole } from "@/types/database";
 import { Alert } from "@/components/ui/alert";
@@ -24,6 +25,8 @@ interface AdminPlayer {
   role: MemberRole;
   isActive: boolean;
   positions: { position: PositionCode; preferenceRank: number; rating: number }[];
+  /** Their FIFA-style self-ratings; null until they set any. Admin-only. */
+  attributes: (Attributes & { overall: number }) | null;
 }
 
 export function PlayerAdminList({
@@ -77,6 +80,11 @@ export function PlayerAdminList({
                 </span>
               </span>
               <span className="shrink-0 text-right">
+                {player.attributes ? (
+                  <span className="block text-lg font-black tabular-nums text-lime" title="Overall">
+                    {player.attributes.overall}
+                  </span>
+                ) : null}
                 {player.role !== "player" ? (
                   <span className="block text-xs font-bold text-lime capitalize">{player.role}</span>
                 ) : null}
@@ -122,6 +130,26 @@ function PlayerActions({ player, isSelf }: { player: AdminPlayer; isSelf: boolea
 
   return (
     <div className="border-t border-pitch-800 bg-pitch-850 px-4 py-4">
+      <div className="mb-4">
+        <p className="mb-1 text-xs font-bold uppercase tracking-[0.12em] text-chalk-faint">
+          FIFA-style ratings{player.attributes ? ` · Overall ${player.attributes.overall}` : ""}
+        </p>
+        {player.attributes ? (
+          <ul className="grid grid-cols-3 gap-2 text-center">
+            {ATTRIBUTE_KEYS.map((key) => (
+              <li key={key} className="rounded-xl border border-pitch-700 bg-pitch-900 py-1.5">
+                <span className="block text-lg font-black tabular-nums">{player.attributes![key]}</span>
+                <span className="block text-[10px] font-bold uppercase text-chalk-faint" title={ATTRIBUTE_LABELS[key]}>
+                  {ATTRIBUTE_SHORT[key]}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-chalk-faint">Not set yet.</p>
+        )}
+      </div>
+
       {player.positions.length > 0 ? (
         <div className="mb-4">
           <p className="mb-1 text-xs font-bold uppercase tracking-[0.12em] text-chalk-faint">Ratings</p>

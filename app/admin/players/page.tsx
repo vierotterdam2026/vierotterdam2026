@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/lib/auth/current-user";
 import { getGroup } from "@/lib/data/groups";
-import { listGroupMembers } from "@/lib/data/players";
+import { listAttributes, listGroupMembers } from "@/lib/data/players";
 import { Alert } from "@/components/ui/alert";
 import { PlayerAdminList } from "./player-admin-list";
 
@@ -12,6 +12,7 @@ export default async function AdminPlayersPage() {
   if (!group) return <Alert tone="warning">This football group has not been set up yet.</Alert>;
 
   const players = await listGroupMembers(group.id);
+  const attributes = await listAttributes(players.map((p) => p.id));
 
   return (
     <>
@@ -29,6 +30,7 @@ export default async function AdminPlayersPage() {
           role: p.role,
           isActive: p.is_active,
           positions: p.positions,
+          attributes: attributes.get(p.id) ?? null,
         }))}
         currentAdminId={admin.player.id}
       />

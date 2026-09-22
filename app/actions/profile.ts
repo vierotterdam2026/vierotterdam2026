@@ -5,7 +5,7 @@ import { requirePlayer } from "@/lib/auth/current-user";
 import { hashPin, verifyPin } from "@/lib/auth/pin";
 import { clearAvatar, storeAvatar } from "@/lib/players/avatar-storage";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { changePinSchema, positionPreferencesSchema, profileSchema } from "@/lib/validation/schemas";
+import { attributesSchema, changePinSchema, positionPreferencesSchema, profileSchema } from "@/lib/validation/schemas";
 import { toActionState, type ActionState } from "@/lib/actions/result";
 
 export async function updateProfileAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -50,6 +50,23 @@ export async function updateProfileAction(_prev: ActionState, formData: FormData
     // The generator reads live ratings, so a change counts for the next teams
     // picked — including this Sunday. Teams already picked keep their snapshot.
     return { ok: true, message: "Saved. This is what the next teams will be picked from." };
+  } catch (error) {
+    return toActionState(error);
+  }
+}
+
+export async function updateAttributesAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const user = await requirePlayer();
+    const input = attributesSchema.parse(JSON.parse(String(formData.get("attributes") ?? "{}")));
+
+    const { error } = await supabaseAdmin()
+      .from("player_attributes")
+      .upsert({ player_id: user.player.id, ...input }, { onConflict: "player_id" });
+    if (error) throw error;
+
+    revalidatePath("/profile");
+    return { ok: true, message: "Ratings saved." };
   } catch (error) {
     return toActionState(error);
   }

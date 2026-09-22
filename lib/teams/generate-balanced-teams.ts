@@ -1,3 +1,4 @@
+import { ATTRIBUTE_KEYS } from "@/lib/players/attributes";
 import { evaluateTeam, preparePlayers, round2, type PreparedPlayer, type TeamStats } from "./evaluate";
 import { computeTeamSizes } from "./team-sizes";
 import type {
@@ -15,6 +16,8 @@ import type {
  */
 const WEIGHTS = {
   ability: 4,
+  /** Spread of each attribute across teams, so no side gets all the pace and none of the defending. */
+  attributes: 2,
   goalkeeper: 10,
   shape: 6,
   preference: 3,
@@ -74,6 +77,7 @@ export function generateBalancedTeams(
 
   const weights = {
     ability: balanceAbility ? WEIGHTS.ability : 0,
+    attributes: balanceAbility ? WEIGHTS.attributes : 0,
     goalkeeper: balanceGoalkeepers ? WEIGHTS.goalkeeper : 0,
     shape: balancePositions ? WEIGHTS.shape : 0,
     preference: respectPreferences ? WEIGHTS.preference : 0,
@@ -260,7 +264,7 @@ function optimise(
 }
 
 interface PenaltyContext {
-  weights: { ability: number; goalkeeper: number; shape: number; preference: number };
+  weights: { ability: number; attributes: number; goalkeeper: number; shape: number; preference: number };
   unavoidableKeeperGap: number;
   previousByIndex: number[] | null;
   minimumChangeRatio: number;
@@ -270,6 +274,8 @@ interface PenaltyContext {
 function penaltyOf(members: number[][], stats: TeamStats[], ctx: PenaltyContext): number {
   const averages = stats.map((s) => s.averageRating);
   const abilityComponent = standardDeviation(averages) * ABILITY_SCALE;
+
+  const attributeComponent = attributeImbalanceOf(stats);
 
   const teamsWithoutKeeper = stats.filter((s) => !s.hasGoalkeeper).length;
   const keeperComponent = Math.max(0, teamsWithoutKeeper - ctx.unavoidableKeeperGap);
@@ -281,6 +287,7 @@ function penaltyOf(members: number[][], stats: TeamStats[], ctx: PenaltyContext)
 
   let penalty =
     ctx.weights.ability * abilityComponent +
+    ctx.weights.attributes * attributeComponent +
     ctx.weights.goalkeeper * keeperComponent +
     ctx.weights.shape * shapeComponent +
     ctx.weights.preference * preferenceComponent;
@@ -310,6 +317,7 @@ function metricsOf(
   const teamsWithoutGoalkeeper = stats.filter((s) => !s.hasGoalkeeper).length;
   const avoidable = Math.max(0, teamsWithoutGoalkeeper - unavoidableKeeperGap);
   const positionalImbalance = mean(stats.map((s) => s.positionalImbalance));
+  const attributeImbalance = attributeImbalanceOf(stats);
   const preferencePenalty = playerCount
     ? stats.reduce((sum, s) => sum + s.preferencePenaltySum, 0) / playerCount
     : 0;
@@ -317,6 +325,7 @@ function metricsOf(
   // An indicator for the admin, not a scientific measure (spec §12).
   const indicativePenalty =
     WEIGHTS.ability * standardDeviation(averages) * ABILITY_SCALE +
+    WEIGHTS.attributes * attributeImbalance +
     WEIGHTS.goalkeeper * avoidable +
     WEIGHTS.shape * positionalImbalance +
     WEIGHTS.preference * preferencePenalty;
@@ -327,6 +336,7 @@ function metricsOf(
     teamsWithoutGoalkeeper,
     avoidableTeamsWithoutGoalkeeper: avoidable,
     goalkeeperCapableCount,
+    attributeImbalance: round2(attributeImbalance),
     positionalImbalance: round2(positionalImbalance),
     preferencePenalty: round2(preferencePenalty),
     firstChoiceCount: stats.reduce((sum, s) => sum + s.firstChoiceCount, 0),
@@ -360,11 +370,32 @@ function warningsFor(
     );
   }
 
+  const withoutAttributes = players.filter((p) => !p.attributes).length;
+  if (withoutAttributes > 0 && withoutAttributes < players.length) {
+    warnings.push(
+      `${withoutAttributes} ${
+        withoutAttributes === 1 ? "player has" : "players have"
+      } not set their FIFA-style ratings yet, so only their position ratings count for them.`,
+    );
+  }
+
   if (new Set(sizes).size > 1) {
     warnings.push(`Teams are uneven: ${sizes.join(" / ")}.`);
   }
 
   return warnings;
+}
+
+/**
+ * Mean, over the six attributes, of how much the teams' averages differ, scaled
+ * like the ability term (÷10 to the 1-10 scale, ×ABILITY_SCALE). Teams with no
+ * rated players are skipped; with fewer than two comparable teams it is 0.
+ */
+function attributeImbalanceOf(stats: TeamStats[]): number {
+  const rated = stats.filter((s) => s.attributeAverages !== null);
+  if (rated.length < 2) return 0;
+  const perAttribute = ATTRIBUTE_KEYS.map((key) => standardDeviation(rated.map((s) => s.attributeAverages![key])));
+  return (mean(perAttribute) / 10) * ABILITY_SCALE;
 }
 
 function mean(values: number[]): number {

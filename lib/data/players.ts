@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { PositionCode } from "@/lib/teams/positions";
+import type { Attributes } from "@/lib/players/attributes";
 import type { MemberRole, PlayerRow } from "@/types/database";
 
 export interface PlayerPosition {
@@ -92,4 +93,24 @@ export async function listGroupMembers(groupId: string): Promise<PlayerProfile[]
       positions: byPlayer.get(player.id) ?? [],
     }))
     .sort((a, b) => Number(b.is_active) - Number(a.is_active) || a.name.localeCompare(b.name));
+}
+
+/** A player's own FIFA-style ratings, or null before they have set any. Server-only: never sent to other players. */
+export async function getPlayerAttributes(playerId: string): Promise<(Attributes & { overall: number }) | null> {
+  const { data } = await supabaseAdmin()
+    .from("player_attributes")
+    .select("pace, shooting, passing, dribbling, defending, physical, overall")
+    .eq("player_id", playerId)
+    .maybeSingle();
+  return data;
+}
+
+/** Attributes for many players, keyed by player id. Admin pages only. */
+export async function listAttributes(playerIds: string[]): Promise<Map<string, Attributes & { overall: number }>> {
+  if (playerIds.length === 0) return new Map();
+  const { data } = await supabaseAdmin()
+    .from("player_attributes")
+    .select("player_id, pace, shooting, passing, dribbling, defending, physical, overall")
+    .in("player_id", playerIds);
+  return new Map((data ?? []).map(({ player_id, ...rest }) => [player_id, rest]));
 }

@@ -125,14 +125,25 @@ describe("reveal defaults", () => {
     expect(revealed).toBe("2026-09-18T21:59:00.000Z");
   });
 
-  it("closes signup the day after the game", async () => {
-    const { defaultSignupDeadline } = await import("@/lib/sessions/deadline");
-    const closes = defaultSignupDeadline("2026-09-20", {
-      default_signup_close_days_after: 1,
-      default_signup_deadline_time: "23:59",
+  it("reveals on Saturday 21:00 Amsterdam time", async () => {
+    const { defaultTeamsRevealAt } = await import("@/lib/sessions/deadline");
+    const revealed = defaultTeamsRevealAt("2026-09-27", {
+      default_teams_reveal_days_before: 1,
+      default_teams_reveal_time: "21:00",
       timezone: "Europe/Amsterdam",
     });
-    expect(closes).toBe("2026-09-21T21:59:00.000Z");
+    // Saturday 26 September, 21:00 Amsterdam = 19:00 UTC in summer time.
+    expect(revealed).toBe("2026-09-26T19:00:00.000Z");
+  });
+
+  it("closes signup at 15:00 on the day of the game", async () => {
+    const { defaultSignupDeadline } = await import("@/lib/sessions/deadline");
+    const closes = defaultSignupDeadline("2026-09-20", {
+      default_signup_close_days_after: 0,
+      default_signup_deadline_time: "15:00",
+      timezone: "Europe/Amsterdam",
+    });
+    expect(closes).toBe("2026-09-20T13:00:00.000Z");
   });
 });
 

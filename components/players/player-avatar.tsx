@@ -3,6 +3,7 @@ const SIZES = {
   md: "size-10 text-sm",
   lg: "size-14 text-lg",
   xl: "size-20 text-2xl",
+  xxl: "size-32 text-4xl",
 } as const;
 
 function initials(name: string): string {

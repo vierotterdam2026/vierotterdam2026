@@ -66,8 +66,8 @@ export function teamsArePublic(status: SessionStatus): boolean {
 
 /**
  * Whether players can see the teams yet. Teams are published when the organiser
- * is happy with them, but only revealed at the scheduled moment — by default the
- * end of the Friday before — so they can be prepared early without going out
+ * is happy with them, but only revealed at the scheduled moment — by default 21:00 on
+ * the Saturday before — so they can be prepared early without going out
  * days ahead of the game.
  */
 export function teamsVisible(

@@ -1,3 +1,4 @@
+import { ATTRIBUTE_KEYS, type AttributeKey, type Attributes } from "@/lib/players/attributes";
 import {
   COVERED_CATEGORIES,
   OUTFIELD_CATEGORIES,
@@ -5,6 +6,7 @@ import {
   type PositionCategory,
   type PositionCode,
 } from "./positions";
+import { attributeStrength, blendedStrength, ATTRIBUTE_SHARE } from "./strength";
 import type { AssignedPlayer, GeneratorPlayer } from "./types";
 
 /** Penalty for asking a player to play away from their stated choices (spec §10). */
@@ -32,6 +34,7 @@ export interface PreparedPlayer {
   /** Best rating across their chosen positions — used for draft ordering. */
   bestRating: number;
   goalkeeperRating: number | null;
+  attributes: Attributes | null;
 }
 
 export function preparePlayers(players: GeneratorPlayer[]): PreparedPlayer[] {
@@ -46,14 +49,24 @@ export function preparePlayers(players: GeneratorPlayer[]): PreparedPlayer[] {
 
     const ratings = [...byPosition.values()].map((v) => v.rating);
     const mean = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : UNKNOWN_PLAYER_RATING;
+    const attributes = player.attributes ?? null;
+    const oldBest = ratings.length ? Math.max(...ratings) : UNKNOWN_PLAYER_RATING;
 
     return {
       id: player.id,
       name: player.name,
       byPosition,
       fallbackRating: clampRating(mean - UNFAMILIAR_POSITION_DROP),
-      bestRating: ratings.length ? Math.max(...ratings) : UNKNOWN_PLAYER_RATING,
+      // Draft ordering: the best of their positions, on the blended scale.
+      bestRating: attributes
+        ? Math.max(
+            ...(byPosition.size
+              ? [...byPosition].map(([position, v]) => blendedStrength(attributes, position, v.rating))
+              : [ATTRIBUTE_SHARE * attributeStrength(attributes, "CM") + (1 - ATTRIBUTE_SHARE) * UNKNOWN_PLAYER_RATING]),
+          )
+        : oldBest,
       goalkeeperRating: byPosition.get("GK")?.rating ?? null,
+      attributes,
     };
   });
 }
@@ -62,8 +75,14 @@ function clampRating(value: number): number {
   return Math.min(10, Math.max(1, Math.round(value * 100) / 100));
 }
 
-export function ratingIn(player: PreparedPlayer, position: PositionCode): number {
+/** The self-rated position rating alone, before attributes are blended in. */
+function positionRatingIn(player: PreparedPlayer, position: PositionCode): number {
   return player.byPosition.get(position)?.rating ?? player.fallbackRating;
+}
+
+/** The strength the balancer uses: 80% attributes, 20% position rating (see `strength.ts`). */
+export function ratingIn(player: PreparedPlayer, position: PositionCode): number {
+  return blendedStrength(player.attributes, position, positionRatingIn(player, position));
 }
 
 export function rankIn(player: PreparedPlayer, position: PositionCode): number | null {
@@ -102,6 +121,8 @@ export interface TeamStats {
   totalRating: number;
   averageRating: number;
   hasGoalkeeper: boolean;
+  /** Mean of each attribute over the team's players who have them; null if none do. */
+  attributeAverages: Record<AttributeKey, number> | null;
   /** 0 when the team has a sensible defensive/midfield/attacking shape. */
   positionalImbalance: number;
   preferencePenaltySum: number;
@@ -124,7 +145,8 @@ export function toAssignedPlayers(
     playerId: player.id,
     name: player.name,
     assignedPosition: position,
-    rating: ratingIn(player, position),
+    rating: round2(ratingIn(player, position)),
+    attributes: player.attributes,
     preferenceRank: rankIn(player, position),
   }));
 }
@@ -256,6 +278,7 @@ export function evaluateTeam(members: PreparedPlayer[]): TeamStats {
     totalRating: round2(totalRating),
     averageRating: assignments.length ? round2(totalRating / assignments.length) : 0,
     hasGoalkeeper: members.some((m) => m.goalkeeperRating !== null),
+    attributeAverages: attributeAveragesOf(members),
     positionalImbalance: shapeImbalance(placed),
     preferencePenaltySum: assignments.reduce((sum, a) => sum + preferencePenalty(a.preferenceRank), 0),
     firstChoiceCount: assignments.filter((a) => a.preferenceRank === 1).length,
@@ -265,4 +288,12 @@ export function evaluateTeam(members: PreparedPlayer[]): TeamStats {
 
 export function round2(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+function attributeAveragesOf(members: PreparedPlayer[]): Record<AttributeKey, number> | null {
+  const rated = members.filter((m) => m.attributes);
+  if (rated.length === 0) return null;
+  return Object.fromEntries(
+    ATTRIBUTE_KEYS.map((key) => [key, rated.reduce((sum, m) => sum + m.attributes![key], 0) / rated.length]),
+  ) as Record<AttributeKey, number>;
 }

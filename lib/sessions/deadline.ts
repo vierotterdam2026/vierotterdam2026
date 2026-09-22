@@ -13,9 +13,8 @@ export interface RevealDefaults {
 }
 
 /**
- * When answers stop being accepted for a given Sunday. Defaults to the end of the
- * day after the game, so late dropouts and unannounced arrivals can still be
- * recorded — the attendance record matters more than a tidy list beforehand.
+ * When answers stop being accepted for a given Sunday. Defaults to 15:00 on the
+ * day of the game (group time).
  */
 export function defaultSignupDeadline(date: string, group: DeadlineDefaults): string {
   const close = new Date(`${date}T00:00:00Z`);
@@ -33,8 +32,8 @@ export function defaultSignupDeadlineLocal(date: string, group: DeadlineDefaults
 }
 
 /**
- * When published teams become visible to players — by default the end of the
- * Friday before kickoff, so the organiser can pick them early in peace.
+ * When published teams become visible to players — by default 21:00 on the
+ * Saturday before kickoff (1 day before, group time).
  */
 export function defaultTeamsRevealAt(date: string, group: RevealDefaults): string {
   const reveal = new Date(`${date}T00:00:00Z`);

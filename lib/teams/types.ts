@@ -1,3 +1,4 @@
+import type { Attributes } from "@/lib/players/attributes";
 import type { PositionCode } from "./positions";
 
 export interface PositionPreference {
@@ -13,6 +14,8 @@ export interface GeneratorPlayer {
   name: string;
   /** May be empty: a player who never finished onboarding still has to be placed. */
   positions: PositionPreference[];
+  /** FIFA-style self-ratings. Absent for players who have not set any: they fall back to `positions` alone. */
+  attributes?: Attributes | null;
 }
 
 export interface GenerateTeamsOptions {
@@ -42,8 +45,13 @@ export interface AssignedPlayer {
   name: string;
   /** The position this player is being asked to play on Sunday. */
   assignedPosition: PositionCode;
-  /** Their rating in that position (1-10), or the fallback if it is a new position. */
+  /**
+   * Their strength in that position (1-10): 80% attributes and 20% self-rated
+   * position rating, or the position rating alone without attributes.
+   */
   rating: number;
+  /** The attributes this pick was based on, for the snapshot. Null if they have none. */
+  attributes: Attributes | null;
   /** 1, 2 or 3 if the assignment is one of their choices; null if it is not. */
   preferenceRank: number | null;
 }
@@ -64,6 +72,8 @@ export interface BalanceMetrics {
   /** Teams left without a keeper that a better arrangement could have avoided. */
   avoidableTeamsWithoutGoalkeeper: number;
   goalkeeperCapableCount: number;
+  /** How unevenly the six attributes are spread across teams, 0 if identical. Ignores players without attributes. */
+  attributeImbalance: number;
   /** Mean per-team deviation from a balanced defensive/midfield/attacking shape. */
   positionalImbalance: number;
   /** Mean preference penalty per player: 0 if everyone got their first choice. */

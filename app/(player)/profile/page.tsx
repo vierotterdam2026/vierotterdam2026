@@ -1,17 +1,23 @@
 import { requirePlayer } from "@/lib/auth/current-user";
-import { getPlayerProfile } from "@/lib/data/players";
+import { getPlayerAttributes, getPlayerProfile } from "@/lib/data/players";
 import { AvatarForm } from "./avatar-form";
+import { AttributesForm } from "./attributes-form";
 import { ProfileForm } from "./profile-form";
 import { ChangePinForm } from "./change-pin-form";
 import { LogoutButton } from "./logout-button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { PlayerCard } from "@/components/players/player-card";
 import { SectionTitle } from "@/components/ui/card";
+import { defaultAttributes } from "@/lib/players/attributes";
 
 export const metadata = { title: "Profile — Sunday Football" };
 
 export default async function ProfilePage() {
   const user = await requirePlayer();
-  const profile = await getPlayerProfile(user.player.id);
+  const [profile, attributes] = await Promise.all([
+    getPlayerProfile(user.player.id),
+    getPlayerAttributes(user.player.id),
+  ]);
 
   return (
     <main className="px-5 py-8">
@@ -24,12 +30,31 @@ export default async function ProfilePage() {
         teams are not out yet. Teams that have already gone up keep the ratings they were picked with.
       </p>
 
+      <div className="mb-8">
+        <SectionTitle className="mb-3">Card</SectionTitle>
+        <PlayerCard
+          name={user.player.name}
+          avatarUrl={profile?.avatar_url ?? null}
+          positions={profile?.positions.map((p) => p.position) ?? []}
+          attributes={attributes}
+        />
+      </div>
+
       <AvatarForm name={user.player.name} avatarUrl={profile?.avatar_url ?? null} />
 
       <ProfileForm
         name={user.player.name}
         positions={profile?.positions.map((p) => ({ position: p.position, rating: Math.round(p.rating) })) ?? []}
       />
+
+      <div className="mt-10">
+        <SectionTitle className="mb-1">Your ratings</SectionTitle>
+        <p className="mb-3 text-sm text-chalk-dim">
+          Rate yourself like a FIFA card, against our Sunday group: 50 is a typical player here. Only you and the
+          admins can see these.
+        </p>
+        <AttributesForm initial={attributes ?? defaultAttributes()} />
+      </div>
 
       <div className="mt-10">
         <SectionTitle className="mb-3">Change your PIN</SectionTitle>

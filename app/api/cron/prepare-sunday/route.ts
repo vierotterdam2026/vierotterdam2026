@@ -19,8 +19,8 @@ const PREPARABLE: SessionStatus[] = ["draft", "signup_open", "signup_closed", "t
  *
  * Runs once a day — the most a Hobby plan allows — which is enough because the
  * reveal time, not this job, decides when players see the teams. The job does
- * the work in the afternoon; `teams_reveal_at` keeps them hidden until Friday
- * night.
+ * the work in the afternoon; `teams_reveal_at` keeps them hidden until Saturday
+ * 21:00.
  *
  * Safe to run repeatedly: a Sunday that already has teams is skipped.
  */

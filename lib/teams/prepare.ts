@@ -109,6 +109,7 @@ export async function prepareTeamsForSession(
         assigned_position: player.assignedPosition,
         position_rating_snapshot: player.rating,
         preference_rank_snapshot: player.preferenceRank,
+        attributes_snapshot: player.attributes,
         lineup_slot: slots.get(player.playerId) ?? null,
       }));
     }),
