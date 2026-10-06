@@ -26,10 +26,10 @@ export function FixtureForm({ timezone }: { timezone: string }) {
   return (
     <form action={action} className="flex flex-col gap-4">
       <Field label="Home team" error={errors?.homeTeam}>
-        <Input name="homeTeam" required maxLength={60} placeholder="Man City" />
+        <Input name="homeTeam" required maxLength={60} placeholder="Team name" />
       </Field>
       <Field label="Away team" error={errors?.awayTeam}>
-        <Input name="awayTeam" required maxLength={60} placeholder="Sunderland" />
+        <Input name="awayTeam" required maxLength={60} placeholder="Team name" />
       </Field>
       <Field label="Competition" hint="Optional, e.g. Premier League." error={errors?.competition}>
         <Input name="competition" maxLength={60} />

@@ -10,7 +10,7 @@ import { missingSundays, UPCOMING_LIMIT } from "@/lib/sessions/upcoming";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { localToUtcIso } from "@/lib/time/group-time";
 import { sessionSchema, sessionStatusSchema, venueSchema } from "@/lib/validation/schemas";
-import type { SessionRow } from "@/types/database";
+import type { SessionRow, VenueRow } from "@/types/database";
 import { toActionState, type ActionState } from "@/lib/actions/result";
 
 export async function saveSessionAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -107,7 +107,16 @@ export async function setSessionStatusAction(_prev: ActionState, formData: FormD
   }
 }
 
-export async function createVenueAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+/**
+ * `createVenueAction` also hands the new row back, so a venue picker that is
+ * already on screen can add it as an option and select it without a reload.
+ */
+export type VenueActionState = ActionState & { venue?: VenueRow };
+
+export async function createVenueAction(
+  _prev: VenueActionState,
+  formData: FormData,
+): Promise<VenueActionState> {
   try {
     await requireAdmin();
     const group = await getGroup();
@@ -120,20 +129,25 @@ export async function createVenueAction(_prev: ActionState, formData: FormData):
       notes: String(formData.get("notes") ?? ""),
     });
 
-    const { error } = await supabaseAdmin().from("venues").insert({
-      group_id: group.id,
-      name: input.name,
-      address: input.address || null,
-      maps_url: input.mapsUrl || null,
-      notes: input.notes || null,
-    });
+    const { data, error } = await supabaseAdmin()
+      .from("venues")
+      .insert({
+        group_id: group.id,
+        name: input.name,
+        address: input.address || null,
+        maps_url: input.mapsUrl || null,
+        notes: input.notes || null,
+      })
+      .select("*")
+      .single();
 
     if (error) {
       throw error.code === "23505" ? new Error("There is already a venue with that name.") : error;
     }
 
     revalidatePath("/admin/settings");
-    return { ok: true, message: "Venue saved." };
+    revalidatePath("/admin");
+    return { ok: true, message: "Venue saved.", venue: data };
   } catch (error) {
     return toActionState(error);
   }
