@@ -98,6 +98,35 @@ export function missingSundays(existing: string[], today: Date = new Date(), cou
   return result;
 }
 
+/**
+ * The Sundays players should be able to see right now: the next `count` on or
+ * after the start of their window. It uses the same boundary as `selectUpcoming`
+ * (15:00 Amsterdam time on game day), so once a game has moved to the Feed its
+ * replacement is already due, and the list always shows `count` Sundays.
+ */
+export function expectedUpcomingSundays(now: Date = new Date(), count = UPCOMING_LIMIT): string[] {
+  const cursor = new Date(`${upcomingWindow(now).from}T00:00:00Z`);
+  // Move to the first Sunday on or after the window start (0 = Sunday).
+  cursor.setUTCDate(cursor.getUTCDate() + ((7 - cursor.getUTCDay()) % 7));
+
+  const result: string[] = [];
+  for (let i = 0; i < count; i++) {
+    result.push(iso(cursor));
+    cursor.setUTCDate(cursor.getUTCDate() + 7);
+  }
+  return result;
+}
+
+/** Those of the expected Sundays that do not exist yet. Empty when nothing is due. */
+export function missingUpcomingSundays(
+  existing: string[],
+  now: Date = new Date(),
+  count = UPCOMING_LIMIT,
+): string[] {
+  const have = new Set(existing);
+  return expectedUpcomingSundays(now, count).filter((date) => !have.has(date));
+}
+
 function iso(date: Date): string {
   return date.toISOString().slice(0, 10);
 }

@@ -5,8 +5,8 @@ import { requireAdmin } from "@/lib/auth/current-user";
 import { getGroup } from "@/lib/data/groups";
 import { getSession } from "@/lib/data/sessions";
 import { assertTransition, type SessionStatus } from "@/lib/sessions/state";
-import { defaultSignupDeadline, defaultTeamsRevealAt } from "@/lib/sessions/deadline";
-import { missingSundays, UPCOMING_LIMIT } from "@/lib/sessions/upcoming";
+import { defaultTeamsRevealAt } from "@/lib/sessions/deadline";
+import { ensureUpcomingSundays } from "@/lib/sessions/ensure-upcoming";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { localToUtcIso } from "@/lib/time/group-time";
 import { sessionSchema, sessionStatusSchema, venueSchema } from "@/lib/validation/schemas";
@@ -174,34 +174,11 @@ export async function createUpcomingSundaysAction(
     const group = await getGroup();
     if (!group) return { ok: false, error: "This football group has not been set up yet." };
 
-    const db = supabaseAdmin();
-
-    const { data: existing } = await db
-      .from("sessions")
-      .select("date")
-      .eq("group_id", group.id)
-      .gte("date", new Date().toISOString().slice(0, 10));
-
-    const dates = missingSundays((existing ?? []).map((s) => s.date), new Date(), UPCOMING_LIMIT);
+    const dates = await ensureUpcomingSundays(group, admin.player.id);
 
     if (dates.length === 0) {
       return { ok: true, message: "The next four Sundays already exist." };
     }
-
-    const rows = dates.map((date) => ({
-      group_id: group.id,
-      date,
-      start_time: group.default_start_time,
-      end_time: group.default_end_time,
-      venue_id: group.default_venue_id,
-      signup_deadline: defaultSignupDeadline(date, group),
-      teams_reveal_at: defaultTeamsRevealAt(date, group),
-      status: "signup_open" as const,
-      created_by: admin.player.id,
-    }));
-
-    const { error } = await db.from("sessions").insert(rows);
-    if (error) throw friendlier(error);
 
     revalidatePath("/admin");
     revalidatePath("/home");
