@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getGroup } from "@/lib/data/groups";
 import { getTeams } from "@/lib/data/teams";
+import { ensureUpcomingSundays } from "@/lib/sessions/ensure-upcoming";
 import { prepareTeamsForSession } from "@/lib/teams/prepare";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { SessionStatus } from "@/lib/sessions/state";
@@ -15,7 +16,11 @@ const LOOKAHEAD_HOURS = 18;
 const PREPARABLE: SessionStatus[] = ["draft", "signup_open", "signup_closed", "teams_generated"];
 
 /**
- * Picks and publishes teams for any Sunday whose reveal is due.
+ * The daily job. Two things, in this order:
+ *
+ * 1. Keeps the list of upcoming Sundays topped up, so it rolls on by itself —
+ *    when a game moves to the Feed, the next one appears the same afternoon.
+ * 2. Picks and publishes teams for any Sunday whose reveal is due.
  *
  * Runs once a day — the most a Hobby plan allows — which is enough because the
  * reveal time, not this job, decides when players see the teams. The job does
@@ -35,6 +40,17 @@ export async function GET(request: NextRequest) {
 
   const group = await getGroup();
   if (!group) return NextResponse.json({ error: "No group configured" }, { status: 500 });
+
+  // Top up first. A failure here must not stop teams being picked, so it is
+  // logged and reported rather than thrown.
+  let created: string[] = [];
+  let topUpError: string | null = null;
+  try {
+    created = await ensureUpcomingSundays(group);
+  } catch (cause) {
+    topUpError = cause instanceof Error ? cause.message : String(cause);
+    console.error("[cron] could not top up upcoming Sundays", cause);
+  }
 
   const db = supabaseAdmin();
   const horizon = new Date(Date.now() + LOOKAHEAD_HOURS * 60 * 60 * 1000).toISOString();
@@ -82,5 +98,10 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ran: new Date().toISOString(), sessions: handled });
+  return NextResponse.json({
+    ran: new Date().toISOString(),
+    created,
+    ...(topUpError ? { createError: topUpError } : {}),
+    sessions: handled,
+  });
 }
