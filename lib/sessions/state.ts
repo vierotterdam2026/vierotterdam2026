@@ -33,7 +33,9 @@ const ALLOWED_TRANSITIONS: Record<SessionStatus, SessionStatus[]> = {
   signup_open: ["signup_closed", "teams_generated", "draft", "cancelled"],
   signup_closed: ["teams_generated", "signup_open", "cancelled"],
   teams_generated: ["teams_published", "signup_closed", "signup_open", "cancelled"],
-  teams_published: ["in_progress", "teams_generated", "cancelled"],
+  // "Match day" is for groups that keep live scores. Here nobody starts it, so a
+  // played Sunday goes straight from published to completed.
+  teams_published: ["in_progress", "completed", "teams_generated", "cancelled"],
   // Going back to picking teams on match day is a real thing that happens.
   in_progress: ["completed", "teams_published", "teams_generated", "cancelled"],
   completed: ["in_progress"],
