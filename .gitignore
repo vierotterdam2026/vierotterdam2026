@@ -51,3 +51,7 @@ next-env.d.ts
 
 # GitHub token, never committed.
 .github-token
+
+# Database backups hold private data, never committed.
+/backups/
+*.json.gz

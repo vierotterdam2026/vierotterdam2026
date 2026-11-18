@@ -18,6 +18,7 @@
     "setup:vercel": "node scripts/set-vercel-token.mjs",
     "setup:supabase": "node scripts/set-supabase-token.mjs",
     "db:apply": "tsx scripts/db-api.ts",
+    "db:backup": "tsx scripts/db-backup.ts",
     "icons": "node scripts/make-icons.mjs",
     "admin:password": "node scripts/set-admin-password.mjs",
     "setup:github": "node scripts/set-github-token.mjs"
