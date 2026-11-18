@@ -18,7 +18,7 @@ export const SUNDAY_TIMEZONE = "Europe/Amsterdam";
 export const MOVE_TO_FEED_HOUR = 15;
 
 /** Calendar date (YYYY-MM-DD) and hour of `now` in the game timezone. */
-function localDateAndHour(now: Date): { date: string; hour: number } {
+export function localDateAndHour(now: Date): { date: string; hour: number } {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: SUNDAY_TIMEZONE,
     year: "numeric",

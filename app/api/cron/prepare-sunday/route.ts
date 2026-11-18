@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getGroup } from "@/lib/data/groups";
 import { getTeams } from "@/lib/data/teams";
+import { completeFinishedSundays } from "@/lib/sessions/complete-finished";
 import { ensureUpcomingSundays } from "@/lib/sessions/ensure-upcoming";
 import { prepareTeamsForSession } from "@/lib/teams/prepare";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -16,11 +17,12 @@ const LOOKAHEAD_HOURS = 18;
 const PREPARABLE: SessionStatus[] = ["draft", "signup_open", "signup_closed", "teams_generated"];
 
 /**
- * The daily job. Two things, in this order:
+ * The daily job. Three things, in this order:
  *
  * 1. Keeps the list of upcoming Sundays topped up, so it rolls on by itself —
  *    when a game moves to the Feed, the next one appears the same afternoon.
- * 2. Picks and publishes teams for any Sunday whose reveal is due.
+ * 2. Marks Sundays that have been played and are now over as completed.
+ * 3. Picks and publishes teams for any Sunday whose reveal is due.
  *
  * Runs once a day — the most a Hobby plan allows — which is enough because the
  * reveal time, not this job, decides when players see the teams. The job does
@@ -50,6 +52,17 @@ export async function GET(request: NextRequest) {
   } catch (cause) {
     topUpError = cause instanceof Error ? cause.message : String(cause);
     console.error("[cron] could not top up upcoming Sundays", cause);
+  }
+
+  // Then close out the Sundays that are over. Same rule: a failure is reported,
+  // not thrown, so it cannot stop teams being picked.
+  let completed: string[] = [];
+  let completeError: string | null = null;
+  try {
+    completed = await completeFinishedSundays(group);
+  } catch (cause) {
+    completeError = cause instanceof Error ? cause.message : String(cause);
+    console.error("[cron] could not complete finished Sundays", cause);
   }
 
   const db = supabaseAdmin();
@@ -102,6 +115,8 @@ export async function GET(request: NextRequest) {
     ran: new Date().toISOString(),
     created,
     ...(topUpError ? { createError: topUpError } : {}),
+    completed,
+    ...(completeError ? { completeError } : {}),
     sessions: handled,
   });
 }
