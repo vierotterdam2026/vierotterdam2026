@@ -7,6 +7,8 @@ interface Item {
   href: string;
   label: string;
   icon: React.ReactNode;
+  /** Number shown on the icon when there is something waiting. */
+  badge?: number;
 }
 
 const ICON = "size-6";
@@ -40,6 +42,15 @@ function FeedIcon() {
   );
 }
 
+function BellIcon() {
+  return (
+    <svg className={ICON} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15L6 16Z" strokeLinejoin="round" />
+      <path d="M10 20.5a2 2 0 0 0 4 0" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function ProfileIcon() {
   return (
     <svg className={ICON} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
@@ -57,13 +68,14 @@ function AdminIcon() {
   );
 }
 
-export function BottomNavigation({ isAdmin }: { isAdmin: boolean }) {
+export function BottomNavigation({ isAdmin, notificationCount = 0 }: { isAdmin: boolean; notificationCount?: number }) {
   const pathname = usePathname();
 
   const items: Item[] = [
     { href: "/home", label: "Home", icon: <HomeIcon /> },
     { href: "/teams", label: "Teams", icon: <TeamsIcon /> },
     { href: "/feed", label: "Feed", icon: <FeedIcon /> },
+    { href: "/notifications", label: "Alerts", icon: <BellIcon />, badge: notificationCount },
     { href: "/profile", label: "Profile", icon: <ProfileIcon /> },
     ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: <AdminIcon /> }] : []),
   ];
@@ -82,10 +94,22 @@ export function BottomNavigation({ isAdmin }: { isAdmin: boolean }) {
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
+                aria-label={item.badge ? `${item.label}, ${item.badge} waiting` : undefined}
                 className={`flex h-16 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold
                   ${active ? "text-lime" : "text-chalk-faint"}`}
               >
-                {item.icon}
+                <span className="relative">
+                  {item.icon}
+                  {item.badge ? (
+                    <span
+                      aria-hidden
+                      className="tabular absolute -right-2 -top-1.5 flex min-w-4 items-center justify-center rounded-full
+                        bg-kit-red px-1 text-[10px] font-black leading-4 text-white"
+                    >
+                      {item.badge > 9 ? "9+" : item.badge}
+                    </span>
+                  ) : null}
+                </span>
                 {item.label}
               </Link>
             </li>
