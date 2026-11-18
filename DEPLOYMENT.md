@@ -134,3 +134,19 @@ Never send API keys or tokens in a message. Adding somebody to both projects let
 them generate their own, and lets you remove their access later.
 
 <!-- deploy check 23:11 -->
+
+## Backups
+
+The free Supabase plan keeps **no backups** (no point-in-time recovery, nothing
+scheduled). Take one yourself:
+
+```bash
+npm run db:backup     # writes ~/sunday-football-backups/*.json.gz, owner-only
+```
+
+It exports every `public` table plus the list of admin sign-ins (no password
+hashes) through the Management API, and checks each table's row count. Do it
+before any migration and roughly weekly. The file holds private data (PIN hashes,
+ratings, emails): keep it out of git and out of shared folders. Avatar images are
+not included. It is a data export, not a one-command restore; rebuild the schema
+with `npm run db:apply`, then load the rows.
