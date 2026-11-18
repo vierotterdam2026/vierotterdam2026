@@ -230,6 +230,32 @@ export type MatchEventRow = {
   deleted_at: string | null;
 }
 
+export type PaymentStatus = "requested" | "paid" | "waived";
+
+export type PaymentRequestRow = {
+  id: string;
+  group_id: string;
+  session_id: string | null;
+  title: string;
+  amount_cents: number;
+  payment_url: string;
+  expires_on: string | null;
+  created_by: string | null;
+  created_at: string;
+  closed_at: string | null;
+};
+
+export type PaymentShareRow = {
+  id: string;
+  request_id: string;
+  player_id: string;
+  status: PaymentStatus;
+  paid_at: string | null;
+  marked_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -263,6 +289,8 @@ export type Database = {
       fixtures: Table<FixtureRow, "group_id" | "home_team" | "away_team" | "kickoff_at">;
       fixture_predictions: Table<FixturePredictionRow, "fixture_id" | "player_id" | "pick">;
       player_stat_adjustments: Table<PlayerStatAdjustmentRow, "group_id" | "player_id" | "stat" | "delta" | "reason">;
+      payment_requests: Table<PaymentRequestRow, "group_id" | "title" | "amount_cents" | "payment_url">;
+      payment_shares: Table<PaymentShareRow, "request_id" | "player_id">;
     };
     Views: { [_ in never]: never };
     Functions: { [_ in never]: never };
@@ -273,6 +301,7 @@ export type Database = {
       signup_status: SignupStatus;
       match_status: MatchStatus;
       match_event_type: MatchEventType;
+      payment_status: PaymentStatus;
     };
     CompositeTypes: { [_ in never]: never };
   };
