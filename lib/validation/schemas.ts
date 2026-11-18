@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { checkPaymentUrl } from "@/lib/payments/link";
+import { parseEuroToCents } from "@/lib/payments/money";
 import { ATTRIBUTE_MAX, ATTRIBUTE_MIN } from "@/lib/players/attributes";
 import { POSITION_CODES } from "@/lib/teams/positions";
 import { SESSION_STATUSES } from "@/lib/sessions/state";
@@ -163,3 +165,41 @@ export const attributesSchema = z.object({
   defending: attributeValue,
   physical: attributeValue,
 });
+
+/** What one person pays. Typed as euros ("2,50"), carried from here on as cents. */
+const euroAmountSchema = z
+  .string()
+  .transform((value, ctx) => {
+    const cents = parseEuroToCents(value);
+    if (cents === null) {
+      ctx.addIssue({ code: "custom", message: "Enter an amount like 2,50." });
+      return z.NEVER;
+    }
+    return cents;
+  })
+  .pipe(z.number().int().min(10, "That is under 10 cents.").max(100_000, "That is over 1,000 euros — check it."));
+
+const paymentLinkSchema = z.string().transform((value, ctx) => {
+  const checked = checkPaymentUrl(value);
+  if (!checked.ok) {
+    ctx.addIssue({ code: "custom", message: checked.reason });
+    return z.NEVER;
+  }
+  return checked.url;
+});
+
+export const paymentRequestSchema = z.object({
+  title: z.string().trim().min(1, "Give it a title, for example the venue.").max(80, "Keep the title under 80 characters."),
+  /** Cents, once parsed. */
+  amount: euroAmountSchema,
+  paymentUrl: paymentLinkSchema,
+  expiresOn: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date, or leave it empty.")
+    .optional()
+    .or(z.literal("")),
+  sessionId: z.uuid().optional().or(z.literal("")),
+  playerIds: z.array(z.uuid()).min(1, "Pick at least one player.").max(300, "That is too many players."),
+});
+
+export const shareStatusSchema = z.enum(["requested", "paid", "waived"]);
